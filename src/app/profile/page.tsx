@@ -1,9 +1,11 @@
-export const dynamic = 'force-dynamic'
 "use client"
 
-import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+export const dynamic = 'force-dynamic'
+
+import { useSession } from "next-auth/react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 const healthConditionsList = [
   { id: 'diabetes', label: 'Diabetes' },
@@ -25,7 +27,7 @@ export default function ProfilePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState("")
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -38,31 +40,33 @@ export default function ProfilePage() {
   })
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
+    if (status === "unauthenticated") {
+      router.push("/login")
     }
-  }, [status, router])
+    if (session) fetchProfile()
+  }, [status, router, session])
 
-  useEffect(() => {
-    const fetchProfile = async () => {
+  const fetchProfile = async () => {
+    try {
       const res = await fetch('/api/profile')
       if (res.ok) {
         const data = await res.json()
         if (data.profile) {
           setFormData({
-            fullName: data.profile.fullName,
-            age: data.profile.age.toString(),
-            gender: data.profile.gender,
-            height: data.profile.height.toString(),
-            weight: data.profile.weight.toString(),
+            fullName: data.profile.fullName || '',
+            age: data.profile.age?.toString() || '',
+            gender: data.profile.gender || 'male',
+            height: data.profile.height?.toString() || '',
+            weight: data.profile.weight?.toString() || '',
             healthConditions: data.profile.healthConditions ? data.profile.healthConditions.split(',') : [],
-            fitnessGoal: data.profile.fitnessGoal,
+            fitnessGoal: data.profile.fitnessGoal || 'maintain',
           })
         }
       }
+    } catch (error) {
+      console.error(error)
     }
-    if (session) fetchProfile()
-  }, [session])
+  }
 
   const handleConditionChange = (conditionId: string) => {
     setFormData((prev) => {
@@ -80,35 +84,44 @@ export default function ProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setMessage('')
+    setMessage("")
 
     const res = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
+      body: JSON.stringify({
+        ...formData,
+        age: parseInt(formData.age),
+        height: parseFloat(formData.height),
+        weight: parseFloat(formData.weight),
+        healthConditions: formData.healthConditions.join(','),
+      }),
     })
 
     if (res.ok) {
       setMessage('Profile saved successfully!')
-      setTimeout(() => router.push('/dashboard'), 1500)
     } else {
       setMessage('Failed to save profile')
     }
     setLoading(false)
   }
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 py-8 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8">
-        <h1 className="text-3xl font-bold text-emerald-800 mb-2">Health Profile</h1>
-        <p className="text-gray-500 mb-6">Tell us about yourself to generate your personalized diet plan</p>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-emerald-800">Health Profile</h1>
+          <Link href="/dashboard" className="text-emerald-600 hover:underline">← Back to Dashboard</Link>
+        </div>
+
+        <p className="text-gray-500 mb-6">Tell us about yourself to generate your personalized AI diet plan.</p>
 
         {message && (
-          <div className={`p-3 rounded-lg mb-4 text-sm ${message.includes('success') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+          <div className={`p-3 rounded-lg mb-4 text-sm ${message.includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
             {message}
           </div>
         )}
@@ -120,7 +133,7 @@ export default function ProfilePage() {
               type="text"
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               required
             />
           </div>
@@ -134,8 +147,6 @@ export default function ProfilePage() {
                 onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                 required
-                min="10"
-                max="120"
               />
             </div>
             <div>
@@ -157,24 +168,22 @@ export default function ProfilePage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
               <input
                 type="number"
+                step="0.1"
                 value={formData.height}
                 onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                 required
-                min="50"
-                max="300"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
               <input
                 type="number"
+                step="0.1"
                 value={formData.weight}
                 onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                 required
-                min="20"
-                max="500"
               />
             </div>
           </div>
@@ -183,58 +192,38 @@ export default function ProfilePage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Health Conditions</label>
             <div className="grid grid-cols-2 gap-2">
               {healthConditionsList.map((condition) => (
-                <label
-                  key={condition.id}
-                  className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    formData.healthConditions.includes(condition.id)
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 hover:border-emerald-300'
-                  }`}
-                >
+                <label key={condition.id} className="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-50 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.healthConditions.includes(condition.id)}
                     onChange={() => handleConditionChange(condition.id)}
-                    className="mr-2 accent-emerald-600"
+                    className="w-4 h-4 text-emerald-600 rounded"
                   />
-                  <span className="text-sm">{condition.label}</span>
+                  <span className="text-sm text-gray-700">{condition.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fitness Goal</label>
-            <div className="grid grid-cols-3 gap-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fitness Goal</label>
+            <select
+              value={formData.fitnessGoal}
+              onChange={(e) => setFormData({ ...formData, fitnessGoal: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+            >
               {fitnessGoals.map((goal) => (
-                <label
-                  key={goal.id}
-                  className={`flex items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    formData.fitnessGoal === goal.id
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="fitnessGoal"
-                    value={goal.id}
-                    checked={formData.fitnessGoal === goal.id}
-                    onChange={(e) => setFormData({ ...formData, fitnessGoal: e.target.value })}
-                    className="mr-2 accent-emerald-600"
-                  />
-                  <span className="text-sm font-medium">{goal.label}</span>
-                </label>
+                <option key={goal.id} value={goal.id}>{goal.label}</option>
               ))}
-            </div>
+            </select>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 font-medium text-lg"
+            className="w-full py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
           >
-            {loading ? 'Saving...' : 'Save Profile & Generate Diet Plan'}
+            {loading ? 'Saving...' : 'Save Profile'}
           </button>
         </form>
       </div>
